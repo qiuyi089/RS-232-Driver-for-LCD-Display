@@ -1,0 +1,1 @@
+thisoneworks.o: ../thisoneworks.s

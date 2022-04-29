@@ -1,0 +1,283 @@
+ARM GAS  C:\Users\Nguyen\AppData\Local\Temp\ccp2YxFZ.s 			page 1
+
+
+   1              	# 1 "../thisoneworks.s"
+   1              	.text
+   0              	
+   0              	
+   0              	
+   2              	.global _start
+   3              	.global INT_DIRECTOR
+   4              	
+   5              	_start:
+   6              	@@@@@@@@SET UP THE STACK@@@@@@@@@@@@@@@@@@@@@@@@@@@
+   7 0000 6CD29FE5 		LDR R13,=STACK1  @Point to base of STACK for svc mod
+   8 0004 01DA8DE2 		ADD R13,R13,#0x1000 @Point to top of STACK
+   9 0008 120002F1 		CPS #0x12    @Switch to IRQ mode
+  10 000c 64D29FE5 		LDR R13,=STACK2  @Point to IRQ mode
+  11 0010 01DA8DE2 		ADD R13,R13,#0x1000  @Point to top of STACK
+  12 0014 130002F1 		CPS #0x13  @Back to SVC mode
+  13              	@@@@@@@ Turn on UART2 CLK @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  14 0018 0200A0E3 		LDR R0,=0x02 @Enable clock for GPIO
+  15 001c 58129FE5 		LDR R1, =0x44E00070 @CM_PER_UART2_CLKCTRL
+  16 0020 000081E5 		STR R0, [R1] @wake up the clock
+  17              	@@@@@@@@ Turn on GPIO1 CLK @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  18 0024 54129FE5 		LDR R1,=0x44E000AC @Address of GPIO1_CLKCTRL register
+  19 0028 000081E5 		STR R0,[R1] @Enable GPIO1
+  20              		@Detect falling edge on GPIO1_31 which is pin 20
+  21 002c 50029FE5 		ldr R0,=0x4804C000 @base address of GPIO1 register
+  22 0030 531F80E2 		ADD R1,R0,#0x14C @R1 = address of GPIO1_FALLINGDETECT register
+  23 0034 0221A0E3 		MOV R2,#0x80000000 @Load value for bit 31
+  24 0038 003091E5 		LDR R3,[R1] @Read GPIO1_FALLINGDETECT register
+  25 003c 023083E1 		ORR R3,R3,R2 @Modify (set bit 21)
+  26 0040 003081E5 		STR R3,[R1] @Write back
+  27 0044 341080E2 		ADD R1,R0,#0x34 @Address of GPIO1_IRQSTATUS_SET_0 register
+  28 0048 002081E5 		STR R2, [R1] @Enable GPIO1_21 request on POINTRPEND1
+  29              	@@@@@@@@@@@@@@ TIMER5 @@@@@@@@@@@@@@@@@@@@@@@@@@
+  30              		@turn on Timer5 CLK
+  31 004c 0220A0E3 		mov R2,#0x2 @value to enable Timer5 CLK
+  32 0050 30129FE5 		ldr R1,=0x44E000EC  @address of CM_PER_TIMER2_CLKCTRL
+  33 0054 002081E5 		str R2,[R1] @turn on
+  34 0058 2C129FE5 		ldr R1,=0x44E00518  @address of PRCMCLKSEL_TIMER5 register
+  35 005c 002081E5 		str R2,[R1] @select 32Khz CLK for Timer5
+  36              		@initialize timer5 registers, with count, overflow interrupt generation
+  37 0060 28129FE5 		ldr R1,=0x48046000  @Base address for Timer5 register
+  38 0064 0120A0E3 		mov R2,#0x1 @value to reset Timer5
+  39 0068 102081E5 		str R2,[R1,#0x10] @write to Timer5 CFG register
+  40 006c 0220A0E3 		mov R2,#0x2 @value to enable overflow interrupt
+  41 0070 2C2081E5 		str R2,[R1,#0x2C] @write to Timer5 IRQENABLE_SET
+  42 0074 18229FE5 		ldr R2,=0xFFFF8000 @count value for 1 seconds
+  43 0078 402081E5 		str R2,[R1,#0x40] @Timer5 TLDR load register
+  44 007c 3C2081E5 		str R2,[R1,#0x3C] @write to Timer5 TCRR count register
+  45              	
+  46              	
+  47              	@@@@@@@@@@@Switch to mode 1@@@@@@@@@@@@@@@@@
+  48 0080 10129FE5 		LDR R1, =0x44E10954 @address of the  control module register + Spi0_d0 = 0x954
+  49 0084 0920A0E3 		LDR R2,=0x09 @value to switch it to mode 1
+  50 0088 002081E5 		STR R2, [R1] @switch the pin to mode 1
+  51              	@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  52              		@initialize UART2
+  53 008c 08129FE5 		LDR R1, =0x48024000 @address of UART2
+ARM GAS  C:\Users\Nguyen\AppData\Local\Temp\ccp2YxFZ.s 			page 2
+
+
+  54 0090 08229FE5 		LDR R2, =0x4802400C @address of UART2_LCR
+  55 0094 8330A0E3 		MOV R3,#0x83 @the value to switch UART2 to mode A
+  56 0098 003082E5 		STR R3,[R2] @switch to mode A by writing 0x83 to the LCR
+  57 009c 00229FE5 		LDR R2, =0x48024004 @address of UART2 DLH
+  58 00a0 0130A0E3 		MOV R3,#0x01
+  59 00a4 003082E5 		STR R3, [R2] @write 0x01 to DLH for a 9600 baud rate
+  60 00a8 EC219FE5 		LDR R2, =0x48024000 @address of UART2 DLL
+  61 00ac 3830A0E3 		MOV R3, #0x38
+  62 00b0 003082E5 		STR R3, [R2] @write 0x38 to DLL for a 9600 baud rate
+  63 00b4 202081E2 		ADD R2, R1, #0x20 @address of MDR1 register for UART2
+  64 00b8 0030A0E3 		MOV R3, #0x00
+  65 00bc 003082E5 		STR R3, [R2] @store 0x00 to MDR1 register to reset the bits.
+  66 00c0 D8219FE5 		LDR R2, =0x4802400C @address of UART2_LCR
+  67 00c4 0330A0E3 		MOV R3, #0x03
+  68 00c8 003082E5 		STR R3,[R2] @store 0x00 to LCR to switch the UART2 back to operation mode and keep the 8-bit data 
+  69 00cc D4219FE5 		LDR R2, =0x48024008 @address of the FIFO Control Register
+  70 00d0 0630A0E3 		MOV R3, #0x06
+  71 00d4 003082E5 		STR R3,[R2] @disable RX FIFO and TX FIFO
+  72              	
+  73              		@initialize INTC
+  74 00d8 CC119FE5 		ldr R1,=0x48200000 @base address for INTC
+  75 00dc 0220A0E3 		mov R2,#0x2 @value to reset INTC
+  76 00e0 102081E5 		str R2,[R1,#0x10] @write to INTC Config register
+  77 00e4 0222A0E3 		mov R2,#0x20000000    @unmask INTC INT 93, Timer5 interrupt
+  78 00e8 C82081E5 		str R2,[R1,#0xC8] @write to INTC_MIR_CLEAR2
+  79 00ec 0420A0E3 		mov R2,#0x04 @value to unmask INTC INT 98, GPIOINTA
+  80 00f0 E82081E5 		str R2,[R1,#0xE8] @write to INTC_MIR_CLEAR3 register
+  81              	
+  82              		@initialize INTC for UART2
+  83 00f4 B4119FE5 		LDR R1,=0x482000C8 @Address of INTC_MIR_CLEAR2 register
+  84 00f8 012BA0E3 		MOV R2,#0x400 @value to unmask INTC INT 74 UART2
+  85 00fc 002081E5 		STR R2,[R1] @Write to INTC_MIR_CLEAR2 register
+  86              	
+  87              		@Make sure processor IRQ enabled in CPSR
+  88 0100 00300FE1 		MRS R3,CPSR @Copy CPSR to R3
+  89 0104 8030C3E3 		BIC R3,#0x80 @clear bit 7
+  90 0108 03F021E1 		MSR CPSR_c,R3 @Write back to CPSR
+  91              		@Wait for interrupt
+  92 010c 00F020E3 	Loop: NOP
+  93 0110 FDFFFFEA 		B Loop
+  94              	
+  95              	INT_DIRECTOR:
+  96 0114 FF432DE9 		STMFD SP!,{R0-R9,LR} @Push registers on stack
+  97              	@@@@@@@@@@@@@ Check if it was UART2 @@@@@@@@@@@@@@@@@@@@@@@@@@@
+  98 0118 94019FE5 		LDR R0,=0x482000D8 @value of the INTC_PENDING_IRQ2
+  99 011c 001090E5 		LDR R1, [R0] @load the value of the INTC_PENDING_IRQ2 register
+ 100 0120 010B51E3 		CMP R1,#0x00000400 @check the third bit to see if it from UART2
+ 101 0124 2D00000A 		BEQ SEND @go to send if it is else go check the button
+ 102              	@@@@@@@@@@@@ Check if it was timer @@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 103 0128 88019FE5 		LDR R0,=0x482000F8 @Address of INTC-PENDING_IRQ3 register
+ 104 012c 001090E5 		LDR R1,[R0] @read INTC-PENDING_IRQ3 register
+ 105 0130 040011E3 		TST R1,#0x00000004 @test bit 2
+ 106 0134 0400000A 		BEQ TCHK  @Not from GPIOINT1A, check for timer5, else
+ 107              	@@@@@@@@@@@@@ Check if it was the button @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 108 0138 7C019FE5 		LDR R0,=0x4804C02C @load GPIO1_IRQSTATUS_0 register address
+ 109 013c 001090E5 		LDR R1,[R0] @read STATUS register
+ 110 0140 020111E3 		TST R1,#0x80000000 @Check if bit 31 = 1
+ARM GAS  C:\Users\Nguyen\AppData\Local\Temp\ccp2YxFZ.s 			page 3
+
+
+ 111 0144 0B00001A 		BNE BUTTON_SVC @if bit 31 = 1, then button pushed
+ 112 0148 0800000A 		BEQ PASS_ON @if bit 31 = 0, then go back to wait loop
+ 113              	TCHK:
+ 114 014c 60119FE5 		ldr R1,=0x482000D8 @address of INTC_PENDING_IRQ2 register
+ 115 0150 000091E5 		ldr R0,[R1] @read value
+ 116 0154 020210E3 		TST R0,#0x20000000 @check if interrupt from Timer5
+ 117 0158 0400000A 		BEQ PASS_ON @if no then go back to wait loop, if yes then check for overflow
+ 118 015c 5C119FE5 		ldr R1,=0x48046028 @address of Timer5 IRQSTATUS register
+ 119 0160 000091E5 		ldr R0,[R1] @read the value
+ 120 0164 020010E3 		TST R0,#0x2 @check bit 1
+ 121 0168 0F00001A 		BNE SEND2 @if overflow then go SEND
+ 122 016c FFFFFFEA 		B PASS_ON @else go back to wait loop
+ 123              	
+ 124              	PASS_ON:
+ 125 0170 FF43BDE8 		LDMFD SP!,{R0-R9,LR} @restore register
+ 126 0174 04F05EE2 		SUBS PC,LR,#4 @pass execution on to wait Loop for now
+ 127              	BUTTON_SVC:
+ 128 0178 0211A0E3 		MOV R1,#0x80000000 @Value turns off GPIO1_31 interrupt request and also turn off INTC interrupt re
+ 129 017c 001080E5 		STR R1,[R0] @write to GPIO1_IRQSTATUS_0 register
+ 130              		@@@@@@@@@@@@ Enable the IER UART  for interrupt
+ 131 0180 1C219FE5 		LDR R2, =0x48024004 @address of IER_UART2 interrupt Enable register
+ 132 0184 0230A0E3 		MOV R3, #0x00000002 @Bit THRIT
+ 133 0188 003082E5 		STR R3, [R2] @Enable the interrupt by write 1 to bit 1 of THRIT
+ 134              		@@@@@@@@@@@@ start the timer5
+ 135 018c FC109FE5 		ldr R1,=0x48046000 @address of Timer5 TCLR register
+ 136 0190 FC209FE5 		ldr R2,=0xFFFF8000 @value load for 2 seconds
+ 137 0194 402081E5 		str R2,[R1,#0x40] @Timer5 TLDR load register
+ 138 0198 3C2081E5 		str R2,[R1,#0x3C] @write to Timer5 TCRR count register
+ 139              	
+ 140 019c 0120A0E3 		mov R2,#0x01  @value to make timer wait for 2 seconds
+ 141 01a0 1C119FE5 		ldr R1,=0x48046038 @address of Timer5 TCLR register
+ 142 01a4 002081E5 		str R2,[R1] @write to TCLR register
+ 143 01a8 0C0000EA 		B SEND @go back to loops
+ 144              	
+ 145              	SEND2:
+ 146 01ac 14019FE5 		LDR R0, =CHAR_PTR2 @send character, R0 = address of pointer store
+ 147 01b0 001090E5 		LDR R1, [R0] @R1 = address of desire character in text string
+ 148 01b4 10219FE5 		LDR R2, =CHAR_COUNT2 @R2 = address of count store location
+ 149 01b8 003092E5 		LDR R3, [R2] @get current character count value
+ 150 01bc 0140D1E4 		LDRB R4, [R1], #1 @read char to send from string, inc ptr in R1 by 1
+ 151 01c0 001080E5 		STR R1, [R0] @put incremented address back in CHAR_PTR location
+ 152 01c4 D0509FE5 		LDR R5, =0x48024000 @point at UART transmit buffer
+ 153 01c8 0040C5E5 		STRB R4, [R5] @write CHARACTER to transmit buffer.THrit send a signal
+ 154 01cc 013053E2 		SUBS R3, R3, #1 @decrement character counter by 1
+ 155 01d0 003082E5 		STR R3, [R2] @store character value counter back in memory
+ 156 01d4 000053E3 		CMP R3,#0
+ 157 01d8 E4FFFF1A 		BNE PASS_ON @geater than or equal zero, more characters
+ 158 01dc 0C00000A 		BEQ LAST_SEND
+ 159              	
+ 160              	SEND:
+ 161 01e0 E8009FE5 		LDR R0, =CHAR_PTR @send character, R0 = address of pointer store
+ 162 01e4 001090E5 		LDR R1, [R0] @R1 = address of desire character in text string
+ 163 01e8 E4209FE5 		LDR R2, =CHAR_COUNT @R2 = address of count store location
+ 164 01ec 003092E5 		LDR R3, [R2] @get current character count value
+ 165 01f0 0140D1E4 		LDRB R4, [R1], #1 @read char to send from string, inc ptr in R1 by 1
+ 166 01f4 001080E5 		STR R1, [R0] @put incremented address back in CHAR_PTR location
+ 167 01f8 9C509FE5 		LDR R5, =0x48024000 @point at UART transmit buffer
+ARM GAS  C:\Users\Nguyen\AppData\Local\Temp\ccp2YxFZ.s 			page 4
+
+
+ 168 01fc 0040C5E5 		STRB R4, [R5] @write CHARACTER to transmit buffer.THrit send a signal
+ 169 0200 013053E2 		SUBS R3, R3, #1 @decrement character counter by 1
+ 170 0204 003082E5 		STR R3, [R2] @store character value counter back in memory
+ 171 0208 000053E3 		CMP R3,#0
+ 172 020c D7FFFF1A 		BNE PASS_ON @geater than or equal zero, more characters
+ 173 0210 FFFFFF0A 		BEQ LAST_SEND
+ 174              	
+ 175              	LAST_SEND:
+ 176              		@turn off timer 5 interrupt request and enable INTC for next IRQ
+ 177 0214 A4109FE5 		ldr R1,=0x48046028  @load address of Timer5 IRQSTATUS register
+ 178 0218 0220A0E3 		mov R2,#0x2 @value to reset Timer5 Overflow IRQ request
+ 179 021c 002081E5 		str R2,[R1] @write
+ 180              		@Turn off NEWIRQA bit in INTC_CONTROL, so processor can respondto new IRQ
+ 181 0220 B0009FE5 		LDR R0,=0x48200048 @address of INTC_CONTROL register
+ 182 0224 0110A0E3 		MOV R1,#01 @value to clear bit 0
+ 183 0228 001080E5 		STR R1,[R0] @write to INTC_CONTROL register
+ 184              		@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ 185 022c 9C009FE5 		LDR R0, =CHAR_PTR @send character, R0 = address of pointer store
+ 186 0230 001090E5 		LDR R1, [R0] @R1 = address of desire character in text string
+ 187 0234 98209FE5 		LDR R2, =CHAR_COUNT @R2 = address of count store location
+ 188 0238 003092E5 		LDR R3, [R2] @get current character count value
+ 189 023c 0140D1E4 		LDRB R4, [R1], #1 @read char to send from string, inc ptr in R1 by 1
+ 190 0240 001080E5 		STR R1, [R0] @put incremented address back in CHAR_PTR location
+ 191 0244 50509FE5 		LDR R5, =0x48024000 @point at UART transmit buffer
+ 192 0248 0040C5E5 		STRB R4, [R5] @write CHARACTER to transmit buffer.THrit send a signal
+ 193 024c 013053E2 		SUBS R3, R3, #1 @decrement character counter by 1
+ 194 0250 003082E5 		STR R3, [R2] @store character value counter back in memory
+ 195 0254 80309FE5 		LDR R3, =MESSAGE @done, reload. get address of start of string
+ 196 0258 003080E5 		STR R3, [R0] @write in char pointer store location in memory
+ 197 025c 0830A0E3 		MOV R3, #8 @load original number of char in string again
+ 198 0260 003082E5 		STR R3, [R2] @write back to memory for next message send
+ 199              	@@@@@@@@@@@@@@@ Shut off the UART INTERRUPTS @@@@@@@@@@@@@@@@@@@@@@@@
+ 200 0264 38009FE5 		LDR R0,=0x48024004 @load address of IER_UART2
+ 201 0268 0010A0E3 		LDR R1,=0x00 @disable the THRIT bit
+ 202 026c 001080E5 		STR R1,[R0]
+ 203 0270 BEFFFFEA 		B PASS_ON
+ 204              	
+ 205              	
+ 206              	.data
+ 207              	.align 2
+ 208              	@ SYS_IRQ: .WORD 0 @location to store system IRQ address
+ 209              	MESSAGE:
+ 210 0000 7C       	.byte 0x7C
+ 211 0001 2D       	.byte 0x2D
+ 212 0002 4D617274 	.ascii "Martin"
+ 212      696E
+ 213 0008 00000000 	CHAR_PTR: .word MESSAGE
+ 214 000c 08000000 	CHAR_COUNT: .word 8
+ 215              	MESSAGE2:
+ 216 0010 7C       	.byte 0x7C
+ 217 0011 2D       	.byte 0x2D
+ 218 0012 20       	.ascii " "
+ 219 0013 10000000 	CHAR_PTR2: .word MESSAGE2
+ 220 0017 03000000 	CHAR_COUNT2: .word 3
+ 221              	
+ 222 001b 00       	.align 2
+ 223              	STACK1: .rept 1024
+ARM GAS  C:\Users\Nguyen\AppData\Local\Temp\ccp2YxFZ.s 			page 5
+
+
+ 224              			.word 0x0000
+ 225 001c 00000000 			.endr
+ 225      00000000 
+ 225      00000000 
+ 225      00000000 
+ 225      00000000 
+ 226              	STACK2: .rept 1024
+ 227              			.word 0x0000
+ 228 101c 00000000 			.endr
+ 228      00000000 
+ 228      00000000 
+ 228      00000000 
+ 228      00000000 
+ 229              	.END
+ARM GAS  C:\Users\Nguyen\AppData\Local\Temp\ccp2YxFZ.s 			page 6
+
+
+DEFINED SYMBOLS
+   ../thisoneworks.s:5      .text:00000000 _start
+   ../thisoneworks.s:95     .text:00000114 INT_DIRECTOR
+   ../thisoneworks.s:223    .data:0000001c STACK1
+   ../thisoneworks.s:7      .text:00000000 $a
+   ../thisoneworks.s:226    .data:0000101c STACK2
+   ../thisoneworks.s:92     .text:0000010c Loop
+   ../thisoneworks.s:160    .text:000001e0 SEND
+   ../thisoneworks.s:113    .text:0000014c TCHK
+   ../thisoneworks.s:127    .text:00000178 BUTTON_SVC
+   ../thisoneworks.s:124    .text:00000170 PASS_ON
+   ../thisoneworks.s:145    .text:000001ac SEND2
+   ../thisoneworks.s:219    .data:00000013 CHAR_PTR2
+   ../thisoneworks.s:220    .data:00000017 CHAR_COUNT2
+   ../thisoneworks.s:175    .text:00000214 LAST_SEND
+   ../thisoneworks.s:213    .data:00000008 CHAR_PTR
+   ../thisoneworks.s:214    .data:0000000c CHAR_COUNT
+   ../thisoneworks.s:209    .data:00000000 MESSAGE
+   ../thisoneworks.s:207    .data:00000000 $d
+   ../thisoneworks.s:215    .data:00000010 MESSAGE2
+   ../thisoneworks.s:229    .text:00000274 $d
+
+NO UNDEFINED SYMBOLS

@@ -1,0 +1,1 @@
+"./startup_ARMCA8.o" "./thisoneworks.o" -Wl,-T"../AM335x.lds" 
